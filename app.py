@@ -5,118 +5,113 @@ import threading
 import time
 import logging
 
-app = Flask(__name__)
-socketio = SocketIO(app, cors_allowed_origins=["http://localhost:5000", "http://127.0.0.1:5000"])
+my_app = Flask(__name__)
+realtime_io = SocketIO(my_app, cors_allowed_origins=["http://localhost:5000", "http://127.0.0.1:5000"])
 
 logging.basicConfig(level=logging.INFO)
 
-@app.route('/')
-def index():
+@my_app.route('/')
+def home_page():
     try:
         return render_template('index.html')
-    except Exception as e:
-        logging.error(f"Failed to serve index.html: {e}")
-        return "Oops, something broke on the server!", 500
+    except Exception as whoops:
+        logging.error(f"Couldn’t load the page: {whoops}")
+        return "Yikes, server’s having a bad day!", 500
 
-def get_system_data():
-    process_list = []
+def grab_system_info():
+    active_procs = []
     try:
-        for proc in psutil.process_iter(['pid', 'name', 'cpu_percent', 'memory_percent', 'status']):
+        for p in psutil.process_iter(['pid', 'name', 'cpu_percent', 'memory_percent', 'status']):
             try:
-                process_list.append({
-                    'pid': proc.info['pid'],
-                    'name': proc.info['name'],
-                    'cpu': round(proc.info['cpu_percent'], 1),
-                    'memory': round(proc.info['memory_percent'], 1),
-                    'state': proc.info['status']
+                active_procs.append({
+                    'pid': p.info['pid'],
+                    'name': p.info['name'],
+                    'cpu': round(p.info['cpu_percent'], 1),
+                    'memory': round(p.info['memory_percent'], 1),
+                    'state': p.info['status']
                 })
-            except (psutil.NoSuchProcess, psutil.AccessDenied) as e:
-                logging.warning(f"Skipped a process: {e}")
-    except Exception as e:
-        logging.error(f"Process iteration blew up: {e}")
-        return {'error': 'Couldn’t fetch processes'}
+            except (psutil.NoSuchProcess, psutil.AccessDenied) as glitch:
+                logging.warning(f"Missed a process: {glitch}")
+    except Exception as oof:
+        logging.error(f"Process grab went kaput: {oof}")
+        return {'error': 'Processes are hiding from me!'}
 
     try:
-        total_cpu = round(psutil.cpu_percent(), 1)
-        mem = psutil.virtual_memory()
-        total_memory_used = round(mem.used / (1024 ** 3), 2)
-        total_memory_total = round(mem.total / (1024 ** 3), 2)
-        total_memory_percent = round(mem.percent, 1)
-    except Exception as e:
-        logging.error(f"System stats failed: {e}")
-        return {'error': 'Couldn’t grab system stats'}
+        cpu_usage = round(psutil.cpu_percent(), 1)
+        ram = psutil.virtual_memory()
+        ram_used = round(ram.used / (1024 ** 3), 2)
+        ram_total = round(ram.total / (1024 ** 3), 2)
+        ram_percent = round(ram.percent, 1)
+    except Exception as dang:
+        logging.error(f"Stats fetch flopped: {dang}")
+        return {'error': 'System stats are playing hard to get'}
 
     return {
-        'total_cpu': total_cpu,
-        'total_memory': total_memory_percent,
-        'total_memory_used': total_memory_used,
-        'total_memory_total': total_memory_total,
-        'processes': process_list
+        'total_cpu': cpu_usage,
+        'total_memory': ram_percent,
+        'total_memory_used': ram_used,
+        'total_memory_total': ram_total,
+        'processes': active_procs
     }
 
-def background_update():
+def keep_it_fresh():
     while True:
         try:
-            data = get_system_data()
-            if 'error' not in data:
-                socketio.sleep(0.1)
-                socketio.emit('update', data)
+            latest_data = grab_system_info()
+            if 'error' not in latest_data:
+                realtime_io.sleep(0.1)
+                realtime_io.emit('update', latest_data)
             else:
-                socketio.emit('message', {'msg': 'Data fetch failed, check logs!', 'status': 'error'})
-        except Exception as e:
-            logging.error(f"Background update crashed: {e}")
-            socketio.emit('message', {'msg': 'Update loop died, sorry!', 'status': 'error'})
+                realtime_io.emit('message', {'msg': 'Data grab failed—check the logs!', 'status': 'error'})
+        except Exception as uhoh:
+            logging.error(f"Update loop took a dive: {uhoh}")
+            realtime_io.emit('message', {'msg': 'Updates crashed, oops!', 'status': 'error'})
         time.sleep(1)
 
 try:
-    update_thread = threading.Thread(target=background_update, daemon=True)
-    update_thread.start()
-except Exception as e:
-    logging.error(f"Couldn’t start update thread: {e}")
+    updater = threading.Thread(target=keep_it_fresh, daemon=True)
+    updater.start()
+except Exception as thread_trouble:
+    logging.error(f"Thread didn’t wanna start: {thread_trouble}")
 
-@socketio.on('connect')
-def handle_connect():
+@realtime_io.on('connect')
+def new_guest():
     try:
-        logging.info(f"Client connected: {request.sid}")
-        socketio.emit('message', {'msg': 'Hey, you’re in! Connection’s good.', 'status': 'success'})
-        # Send initial data right away
-        data = get_system_data()
-        if 'error' not in data:
-            socketio.emit('update', data)
-    except Exception as e:
-        logging.error(f"Connect event failed: {e}")
+        logging.info(f"New buddy joined: {request.sid}")
+        realtime_io.emit('message', {'msg': 'Yo, welcome aboard!', 'status': 'success'})
+        fresh_stats = grab_system_info()
+        if 'error' not in fresh_stats:
+            realtime_io.emit('update', fresh_stats)
+    except Exception as bummer:
+        logging.error(f"Welcome wagon broke down: {bummer}")
 
-@socketio.on('kill_process')
-def handle_kill_process(pid):
+@realtime_io.on('kill_process')
+def zap_process(pid):
     try:
         pid = int(pid)
         if pid <= 0:
-            raise ValueError("PID has to be positive, dude.")
+            raise ValueError("Gimme a real PID, man!")
         
-        proc = psutil.Process(pid)
-        proc.terminate()
+        target = psutil.Process(pid)
+        target.terminate()
         time.sleep(0.1)
-        if proc.is_running():
-            proc.kill()
-            socketio.emit('message', {'msg': f'Had to force-kill {pid}. It’s gone now.', 'status': 'success'})
+        if target.is_running():
+            target.kill()
+            realtime_io.emit('message', {'msg': f'{pid} wouldn’t quit, so I forced it out!', 'status': 'success'})
         else:
-            socketio.emit('message', {'msg': f'Process {pid} is toast!', 'status': 'success'})
-    except ValueError as e:
-        socketio.emit('message', {'msg': f'Bad PID: {e}', 'status': 'error'})
+            realtime_io.emit('message', {'msg': f'{pid} got smoked!', 'status': 'success'})
+    except ValueError as nope:
+        realtime_io.emit('message', {'msg': f'PID’s junk: {nope}', 'status': 'error'})
     except psutil.NoSuchProcess:
-        socketio.emit('message', {'msg': f'Huh, {pid} doesn’t exist. Weird.', 'status': 'error'})
+        realtime_io.emit('message', {'msg': f'{pid} ain’t even there, weird.', 'status': 'error'})
     except psutil.AccessDenied:
-        socketio.emit('message', {'msg': f'Can’t kill {pid}—no permission, sorry!', 'status': 'error'})
-    except Exception as e:
-        socketio.emit('message', {'msg': f'Something went wrong: {e}', 'status': 'error'})
+        realtime_io.emit('message', {'msg': f'No dice killing {pid}—locked down tight.', 'status': 'error'})
+    except Exception as ouch:
+        realtime_io.emit('message', {'msg': f'Mess-up alert: {ouch}', 'status': 'error'})
 
 if __name__ == '__main__':
     try:
-        socketio.run(app, debug=True, host='0.0.0.0', port=5000)
-    except Exception as e:
-        logging.error(f"Server failed to start: {e}")
-<<<<<<< Updated upstream
-        print("Server crashed on startup—check the logs!")
-=======
-        print("Server crashed on startup—check the logs!")
->>>>>>> Stashed changes
+        realtime_io.run(my_app, debug=True, host='0.0.0.0', port=5000)
+    except Exception as crash:
+        logging.error(f"Launch failed hard: {crash}")
+        print("Server’s toast—peek at the logs!")
