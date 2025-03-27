@@ -115,4 +115,8 @@ if __name__ == '__main__':
         socketio.run(app, debug=True, host='0.0.0.0', port=5000)
     except Exception as e:
         logging.error(f"Server failed to start: {e}")
+<<<<<<< Updated upstream
         print("Server crashed on startup—check the logs!")
+=======
+        print("Server crashed on startup—check the logs!")
+>>>>>>> Stashed changes

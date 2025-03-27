@@ -10,15 +10,26 @@
         body {
             font-family: Arial, sans-serif;
             margin: 20px 10px;
+<<<<<<< Updated upstream
             background: #1a1a1a; 
             color: #d8bfd8;
         }
         h1 { color: #9370db; } 
+=======
+            background: #1a1a1a;
+            color: #d8bfd8;
+        }
+        h1 { color: #9370db; }
+>>>>>>> Stashed changes
         .summary {
             margin-bottom: 20px;
             background: #2a1a2a;
             padding: 15px;
+<<<<<<< Updated upstream
             border-radius: 8px; 
+=======
+            border-radius: 8px;
+>>>>>>> Stashed changes
         }
         table {
             width: 100%;
@@ -28,27 +39,48 @@
         }
         th, td {
             border: 1px solid #4b0082;
+<<<<<<< Updated upstream
             padding: 10px;
+=======
+            padding: 12px; /* Changed from 10px */
+>>>>>>> Stashed changes
             text-align: left;
         }
         th {
             background: #4b0082;
+<<<<<<< Updated upstream
             color: #e6e6fa; 
         }
         td { color: #d8bfd8; }
         .alert {
             color: #ff4040; 
+=======
+            color: #e6e6fa;
+        }
+        td { color: #d8bfd8; }
+        .alert {
+            color: #ff4040;
+>>>>>>> Stashed changes
             background: #3a1a1a;
         }
+        tr:hover { background: #3a2a3a; } /* Added hover effect */
         .charts {
             margin-top: 20px;
             display: flex;
             flex-direction: column;
+<<<<<<< Updated upstream
             gap: 20px; 
         }
         canvas {
             width: 100% !important;
             height: 300px; 
+=======
+            gap: 20px;
+        }
+        canvas {
+            width: 100% !important;
+            height: 300px;
+>>>>>>> Stashed changes
             background: #2a2a2a;
             border-radius: 8px;
             padding: 10px;
@@ -60,14 +92,22 @@
             color: white;
             border: none;
             border-radius: 4px;
+<<<<<<< Updated upstream
             transition: background-color 0.3s; 
+=======
+            transition: background-color 0.3s;
+>>>>>>> Stashed changes
         }
         button:hover { background: #7b68ee; }
         #messages p {
             padding: 8px;
             margin: 5px 0;
             border-radius: 4px;
+<<<<<<< Updated upstream
             background: #3a2a3a; 
+=======
+            background: #3a2a3a;
+>>>>>>> Stashed changes
         }
     </style>
 </head>
@@ -75,15 +115,20 @@
     <h1>Real-Time Process Monitoring Dashboard</h1>
     <div class="summary">
         <p>CPU Load: <span id="cpu">0%</span></p>
+<<<<<<< Updated upstream
         <p>Memory Stuff: <span id="memory">0 GB / 0 GB (0%)</span></p>
         <p>Running Junk: <span id="proc_count">0</span></p>
     </div>
 
+=======
+        <p>Memory Usage: <span id="memory">0 GB / 0 GB (0%)</span></p>
+        <p>Active Processes: <span id="proc_count">0</span></p>
+    </div>
+>>>>>>> Stashed changes
     <div class="charts">
         <canvas id="cpuChart"></canvas>
         <canvas id="memoryChart"></canvas>
     </div>
-
     <table id="processTable">
         <thead>
             <tr>
@@ -97,12 +142,14 @@
         </thead>
         <tbody></tbody>
     </table>
-
     <div id="messages"></div>
-
     <script>
         let socket = io('http://127.0.0.1:5000', { reconnection: true, reconnectionAttempts: 5 });
+<<<<<<< Updated upstream
         console.log('trying to ping the server... let’s see');
+=======
+        console.log('Attempting server connection');
+>>>>>>> Stashed changes
 
         let cpuGraph;
         let cpuCanvas = document.getElementById('cpuChart').getContext('2d');
@@ -155,8 +202,13 @@
             document.getElementById('memory').innerHTML = data.total_memory_used + ' GB / ' + data.total_memory_total + ' GB (' + data.total_memory + '%)';
             document.getElementById('proc_count').textContent = data.processes.length;
 
+<<<<<<< Updated upstream
             let tableBits = document.querySelector('#processTable tbody');
             tableBits.innerHTML = '';
+=======
+            let tableBody = document.querySelector('#processTable tbody');
+            tableBody.innerHTML = '';
+>>>>>>> Stashed changes
             for (let proc of data.processes) {
                 let row = document.createElement('tr');
                 row.innerHTML = '<td>' + proc.pid + '</td>' +
@@ -164,9 +216,15 @@
                                 '<td>' + proc.cpu + '</td>' +
                                 '<td>' + proc.memory + '</td>' +
                                 '<td>' + proc.state + '</td>' +
+<<<<<<< Updated upstream
                                 '<td><button onclick="smashProc(' + proc.pid + ')">Kill</button></td>';
                 if (proc.cpu > 80 || proc.memory > 80) row.classList.add('alert');
                 tableBits.appendChild(row);
+=======
+                                '<td><button onclick="endProcess(' + proc.pid + ')">Kill</button></td>';
+                if (proc.cpu > 80 || proc.memory > 80) row.classList.add('alert');
+                tableBody.appendChild(row);
+>>>>>>> Stashed changes
             }
 
             let now = new Date().toLocaleTimeString();
@@ -185,25 +243,42 @@
             memGraph.update();
         });
 
+<<<<<<< Updated upstream
         function smashProc(pid) {
             socket.emit('kill_process', pid);
             console.log('whacking pid ' + pid);
+=======
+        function endProcess(pid) {
+            socket.emit('kill_process', pid);
+            console.log('Termination requested for PID ' + pid);
+>>>>>>> Stashed changes
         }
 
         socket.on('message', function(msg) {
             let msgArea = document.getElementById('messages');
             let p = document.createElement('p');
             p.textContent = msg.msg;
+<<<<<<< Updated upstream
             p.style.color = msg.status == 'error' ? '#ff4040' : '#98fb98';
+=======
+            p.style.color = msg.status === 'error' ? '#ff4040' : '#98fb98';
+>>>>>>> Stashed changes
             msgArea.appendChild(p);
             setTimeout(() => p.remove(), 5000);
         });
 
         socket.on('connect_error', function(err) {
+<<<<<<< Updated upstream
             console.log('server’s noping out: ' + err);
             let msgArea = document.getElementById('messages');
             let p = document.createElement('p');
             p.textContent = 'Server ditched us';
+=======
+            console.log('Server connection failed: ' + err);
+            let msgArea = document.getElementById('messages');
+            let p = document.createElement('p');
+            p.textContent = 'Server connection lost';
+>>>>>>> Stashed changes
             p.style.color = '#ff4040';
             msgArea.appendChild(p);
             setTimeout(() => p.remove(), 5000);
