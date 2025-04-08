@@ -6,207 +6,556 @@
     <title>Real-Time Process Monitoring Dashboard</title>
     <script src="https://cdn.socket.io/4.5.0/socket.io.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-gauge@0.3.0/dist/chartjs-gauge.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.0.0"></script>
     <style>
+        :root {
+            --primary-bg: #1a1a2e;
+            --card-bg: #2b2b40;
+            --accent-color: #6b48ff;
+            --accent-light: rgba(107, 72, 255, 0.2);
+            --text-primary: #e0e0e0;
+            --text-secondary: #a0a0c0;
+            --border-color: #3b3b50;
+            --danger: #ff5555;
+            --success: #55ff55;
+            --chart-height: 250px;
+            --gauge-height: 180px;
+            --top-div-height: 260px; /* Fixed height for top row consistency */
+            --shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+        }
+
         body {
-            font-family: Arial, sans-serif;
-            margin: 20px 10px;
-            background: #1a1a1a; /* dark mode ftw */
-            color: #d8bfd8;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background: var(--primary-bg);
+            color: var(--text-primary);
+            line-height: 1.6;
         }
-        h1 { color: #9370db; } /* purple pop */
-        .summary {
-            margin-bottom: 20px;
-            background: #2a1a2a;
-            padding: 15px;
-            border-radius: 8px; /* smooth edges */
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
         }
+
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 24px;
+            padding-bottom: 16px;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        h1 {
+            color: var(--text-primary);
+            font-size: 24px;
+            font-weight: 500;
+            margin: 0;
+        }
+
+        .dashboard-grid {
+            display: grid;
+            grid-template-columns: repeat(12, 1fr);
+            gap: 24px;
+            margin-bottom: 24px;
+        }
+
+        .metric-card {
+            grid-column: span 6; /* Increased span for balance */
+            background: var(--card-bg);
+            border-radius: 8px;
+            padding: 20px;
+            box-shadow: var(--shadow);
+            height: var(--top-div-height); /* Fixed height */
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .metric-title {
+            color: var(--text-secondary);
+            font-size: 14px;
+            font-weight: 500;
+            margin: 0 0 8px 0;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .metric-value {
+            font-size: 28px;
+            font-weight: 600;
+            color: var(--text-primary);
+            margin: 0;
+        }
+
+        .metric-detail {
+            font-size: 14px;
+            color: var(--text-secondary);
+            margin: 8px 0 0 0;
+        }
+
+        .chart-container {
+            grid-column: span 6;
+            background: var(--card-bg);
+            border-radius: 8px;
+            padding: 20px;
+            box-shadow: var(--shadow);
+        }
+
+        .gauge-container {
+            grid-column: span 3;
+            background: var(--card-bg);
+            border-radius: 8px;
+            padding: 20px;
+            box-shadow: var(--shadow);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: var(--top-div-height); /* Fixed height */
+        }
+
+        .chart-title {
+            font-size: 16px;
+            font-weight: 500;
+            margin: 0 0 16px 0;
+            color: var(--text-primary);
+            width: 100%;
+            text-align: center;
+        }
+
+        .gauge-value {
+            font-size: 24px;
+            font-weight: 600;
+            color: var(--text-primary);
+            margin-top: 10px;
+            text-align: center;
+        }
+
+        canvas {
+            width: 100% !important;
+        }
+
+        .chart-container canvas {
+            height: var(--chart-height) !important;
+        }
+
+        .gauge-container canvas {
+            height: var(--gauge-height) !important;
+            max-width: 200px;
+        }
+
         table {
             width: 100%;
             border-collapse: collapse;
-            background: #2a2a2a;
-            margin-top: 20px;
-        }
-        th, td {
-            border: 1px solid #4b0082;
-            padding: 10px;
-            text-align: left;
-        }
-        th {
-            background: #4b0082;
-            color: #e6e6fa; /* light text on dark */
-        }
-        td { color: #d8bfd8; }
-        .alert {
-            color: #ff4040; /* red flag */
-            background: #3a1a1a;
-        }
-        .charts {
-            margin-top: 20px;
-            display: flex;
-            flex-direction: column;
-            gap: 20px; /* space the graphs */
-        }
-        canvas {
-            width: 100% !important;
-            height: 300px; /* good size */
-            background: #2a2a2a;
+            background: var(--card-bg);
+            box-shadow: var(--shadow);
             border-radius: 8px;
-            padding: 10px;
+            overflow: hidden;
         }
+
+        th, td {
+            padding: 12px 16px;
+            text-align: left;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        th {
+            background: var(--accent-light);
+            color: var(--text-primary);
+            font-weight: 500;
+            font-size: 14px;
+        }
+
+        td {
+            color: var(--text-primary);
+            font-size: 14px;
+        }
+
+        tr:last-child td {
+            border-bottom: none;
+        }
+
+        .table-container {
+            grid-column: 1 / -1;
+            margin-bottom: 24px;
+        }
+
+        .alert {
+            color: var(--danger);
+            background: rgba(255, 85, 85, 0.1);
+        }
+
         button {
-            padding: 5px 10px;
+            padding: 6px 12px;
             cursor: pointer;
-            background: #9370db;
-            color: white;
+            background: var(--accent-color);
+            color: var(--text-primary);
             border: none;
             border-radius: 4px;
-            transition: background-color 0.3s; /* hover jazz */
+            font-size: 13px;
+            transition: background-color 0.2s;
         }
-        button:hover { background: #7b68ee; }
+
+        button:hover {
+            background: #5439cc;
+        }
+
+        #messages {
+            grid-column: 1 / -1;
+        }
+
         #messages p {
-            padding: 8px;
-            margin: 5px 0;
+            padding: 12px 16px;
+            margin: 8px 0;
             border-radius: 4px;
-            background: #3a2a3a; /* msg box */
+            background: var(--card-bg);
+            box-shadow: var(--shadow);
+            animation: fadeIn 0.3s ease-in-out;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(-10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        @media (max-width: 1200px) {
+            .metric-card {
+                grid-column: span 6;
+            }
+            .gauge-container {
+                grid-column: span 6;
+            }
+            .chart-container {
+                grid-column: span 12;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .metric-card, .gauge-container, .chart-container {
+                grid-column: span 12;
+            }
+            .dashboard-grid {
+                gap: 16px;
+            }
         }
     </style>
 </head>
 <body>
-    <h1>Real-Time Process Monitoring Dashboard</h1>
-    <div class="summary">
-        <p>CPU Load: <span id="cpu">0%</span></p>
-        <p>Memory Stuff: <span id="memory">0 GB / 0 GB (0%)</span></p>
-        <p>Running Junk: <span id="proc_count">0</span></p>
+    <div class="container">
+        <header>
+            <h1>Real-Time Process Monitoring Dashboard</h1>
+            <div class="timestamp" id="currentTime"></div>
+        </header>
+
+        <div class="dashboard-grid">
+            <div class="gauge-container">
+                <h3 class="chart-title">CPU Usage</h3>
+                <canvas id="cpuGauge"></canvas>
+                <div class="gauge-value" id="cpu-value">0%</div>
+            </div>
+
+            <div class="gauge-container">
+                <h3 class="chart-title">Memory Usage</h3>
+                <canvas id="memoryGauge"></canvas>
+                <div class="gauge-value" id="memory-value">0%</div>
+            </div>
+
+            <div class="metric-card">
+                <h3 class="metric-title">Active Processes</h3>
+                <p class="metric-value" id="proc_count">0</p>
+            </div>
+
+            <div class="chart-container">
+                <h3 class="chart-title">CPU Usage Over Time</h3>
+                <canvas id="cpuChart"></canvas>
+            </div>
+
+            <div class="chart-container">
+                <h3 class="chart-title">Memory Usage Over Time</h3>
+                <canvas id="memoryChart"></canvas>
+            </div>
+
+            <div class="table-container">
+                <table id="processTable">
+                    <thead>
+                        <tr>
+                            <th>PID</th>
+                            <th>Process Name</th>
+                            <th>CPU (%)</th>
+                            <th>Memory (%)</th>
+                            <th>State</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody></tbody>
+                </table>
+            </div>
+
+            <div id="messages"></div>
+        </div>
     </div>
-
-    <div class="charts">
-        <canvas id="cpuChart"></canvas>
-        <canvas id="memoryChart"></canvas>
-    </div>
-
-    <table id="processTable">
-        <thead>
-            <tr>
-                <th>PID</th>
-                <th>Name</th>
-                <th>CPU (%)</th>
-                <th>Mem (%)</th>
-                <th>State</th>
-                <th>Zap It</th>
-            </tr>
-        </thead>
-        <tbody></tbody>
-    </table>
-
-    <div id="messages"></div>
 
     <script>
-        let socket = io('http://127.0.0.1:5000', { reconnection: true, reconnectionAttempts: 5 });
-        console.log('trying to ping the server... let’s see');
+        // Update current time
+        function updateTime() {
+            const now = new Date();
+            document.getElementById('currentTime').textContent = now.toLocaleString();
+        }
+        updateTime();
+        setInterval(updateTime, 1000);
 
-        let cpuGraph;
+        // Socket connection
+        let socket = io('http://127.0.0.1:5000', { reconnection: true, reconnectionAttempts: 5 });
+        console.log('Establishing connection to server...');
+
+        // Chart configuration for line charts
+        const chartOptions = {
+            responsive: true,
+            maintainAspectRatio: false,
+            animation: {
+                duration: 500
+            },
+            scales: {
+                y: { 
+                    min: 0, 
+                    max: 100,
+                    grid: { 
+                        color: 'rgba(255, 255, 255, 0.05)' 
+                    },
+                    ticks: {
+                        color: '#a0a0c0',
+                        font: {
+                            size: 11
+                        }
+                    }
+                },
+                x: { 
+                    grid: { 
+                        color: 'rgba(255, 255, 255, 0.05)' 
+                    },
+                    ticks: {
+                        color: '#a0a0c0',
+                        maxRotation: 0,
+                        maxTicksLimit: 10,
+                        font: {
+                            size: 11
+                        }
+                    }
+                }
+            },
+            plugins: { 
+                legend: { 
+                    display: false 
+                },
+                tooltip: {
+                    backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                    titleFont: {
+                        size: 13
+                    },
+                    bodyFont: {
+                        size: 12
+                    },
+                    padding: 10
+                }
+            },
+            elements: {
+                line: {
+                    tension: 0.3
+                },
+                point: {
+                    radius: 0,
+                    hitRadius: 10,
+                    hoverRadius: 4
+                }
+            }
+        };
+
+        // Initialize CPU chart
         let cpuCanvas = document.getElementById('cpuChart').getContext('2d');
-        cpuGraph = new Chart(cpuCanvas, {
+        let cpuGraph = new Chart(cpuCanvas, {
             type: 'line',
             data: {
                 labels: [],
                 datasets: [{
                     label: 'CPU Usage (%)',
                     data: [],
-                    borderColor: '#9370db',
-                    backgroundColor: 'rgba(147,112,219,0.2)',
-                    fill: true
+                    borderColor: '#6b48ff',
+                    backgroundColor: 'rgba(107, 72, 255, 0.2)',
+                    fill: true,
+                    borderWidth: 2
                 }]
             },
-            options: {
-                scales: {
-                    y: { min: 0, max: 100, grid: { color: '#4b0082' } },
-                    x: { grid: { color: '#4b0082' } }
-                },
-                plugins: { legend: { labels: { color: '#d8bfd8' } } }
-            }
+            options: chartOptions
         });
 
-        let memGraph;
+        // Initialize Memory chart
         let memCanvas = document.getElementById('memoryChart').getContext('2d');
-        memGraph = new Chart(memCanvas, {
+        let memGraph = new Chart(memCanvas, {
             type: 'line',
             data: {
                 labels: [],
                 datasets: [{
                     label: 'Memory Usage (%)',
                     data: [],
-                    borderColor: '#7b68ee',
-                    backgroundColor: 'rgba(123,104,238,0.2)',
-                    fill: true
+                    borderColor: '#48c9b0',
+                    backgroundColor: 'rgba(72, 201, 176, 0.2)',
+                    fill: true,
+                    borderWidth: 2
                 }]
             },
-            options: {
-                scales: {
-                    y: { min: 0, max: 100, grid: { color: '#4b0082' } },
-                    x: { grid: { color: '#4b0082' } }
-                },
-                plugins: { legend: { labels: { color: '#d8bfd8' } } }
-            }
+            options: chartOptions
         });
 
+        // Function to create gauge options
+        function createGaugeOptions(title) {
+            return {
+                responsive: true,
+                maintainAspectRatio: false,
+                cutout: '70%',
+                circumference: 180,
+                rotation: -90,
+                plugins: {
+                    legend: {
+                        display: false
+                    },
+                    tooltip: {
+                        enabled: true,
+                        callbacks: {
+                            label: function(context) {
+                                return context.raw + '%';
+                            }
+                        }
+                    },
+                    datalabels: {
+                        display: false
+                    }
+                }
+            };
+        }
+
+        // Initialize Memory Gauge
+        let memGaugeCanvas = document.getElementById('memoryGauge').getContext('2d');
+        let memGauge = new Chart(memGaugeCanvas, {
+            type: 'doughnut',
+            data: {
+                datasets: [{
+                    data: [0, 100],
+                    backgroundColor: [
+                        '#48c9b0',
+                        '#3b3b50'
+                    ],
+                    borderWidth: 0
+                }]
+            },
+            options: createGaugeOptions('Memory Usage')
+        });
+
+        // Initialize CPU Gauge
+        let cpuGaugeCanvas = document.getElementById('cpuGauge').getContext('2d');
+        let cpuGauge = new Chart(cpuGaugeCanvas, {
+            type: 'doughnut',
+            data: {
+                datasets: [{
+                    data: [0, 100],
+                    backgroundColor: [
+                        '#6b48ff',
+                        '#3b3b50'
+                    ],
+                    borderWidth: 0
+                }]
+            },
+            options: createGaugeOptions('CPU Usage')
+        });
+
+        // Handle data updates
         socket.on('update', function(data) {
-            document.getElementById('cpu').textContent = data.total_cpu + '%';
-            document.getElementById('memory').innerHTML = data.total_memory_used + ' GB / ' + data.total_memory_total + ' GB (' + data.total_memory + '%)';
+            // Update metrics
+            document.getElementById('cpu-value').textContent = data.total_cpu + '%';
+            document.getElementById('memory-value').textContent = data.total_memory + '%';
             document.getElementById('proc_count').textContent = data.processes.length;
 
+            // Update process table
             let tableBits = document.querySelector('#processTable tbody');
             tableBits.innerHTML = '';
             for (let proc of data.processes) {
                 let row = document.createElement('tr');
-                row.innerHTML = '<td>' + proc.pid + '</td>' +
-                                '<td>' + proc.name + '</td>' +
-                                '<td>' + proc.cpu + '</td>' +
-                                '<td>' + proc.memory + '</td>' +
-                                '<td>' + proc.state + '</td>' +
-                                '<td><button onclick="smashProc(' + proc.pid + ')">Kill</button></td>';
+                row.innerHTML = `
+                    <td>${proc.pid}</td>
+                    <td>${proc.name}</td>
+                    <td>${proc.cpu}%</td>
+                    <td>${proc.memory}%</td>
+                    <td>${proc.state}</td>
+                    <td><button onclick="smashProc(${proc.pid})">Terminate</button></td>
+                `;
                 if (proc.cpu > 80 || proc.memory > 80) row.classList.add('alert');
                 tableBits.appendChild(row);
             }
 
-            let now = new Date().toLocaleTimeString();
+            // Update charts
+            const now = new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit', second:'2-digit'});
+            
+            // Update CPU line chart
             cpuGraph.data.labels.push(now);
             cpuGraph.data.datasets[0].data.push(data.total_cpu);
-            memGraph.data.labels.push(now);
-            memGraph.data.datasets[0].data.push(data.total_memory);
-
             if (cpuGraph.data.labels.length > 20) {
                 cpuGraph.data.labels.shift();
                 cpuGraph.data.datasets[0].data.shift();
+            }
+            cpuGraph.update();
+            
+            // Update Memory line chart
+            memGraph.data.labels.push(now);
+            memGraph.data.datasets[0].data.push(data.total_memory);
+            if (memGraph.data.labels.length > 20) {
                 memGraph.data.labels.shift();
                 memGraph.data.datasets[0].data.shift();
             }
-            cpuGraph.update();
             memGraph.update();
+
+            // Update Memory gauge
+            memGauge.data.datasets[0].data = [data.total_memory, 100 - data.total_memory];
+            memGauge.update();
+
+            // Update CPU gauge
+            cpuGauge.data.datasets[0].data = [data.total_cpu, 100 - data.total_cpu];
+            cpuGauge.update();
         });
 
+        // Process termination function
         function smashProc(pid) {
             socket.emit('kill_process', pid);
-            console.log('whacking pid ' + pid);
+            console.log('Terminating process with PID: ' + pid);
         }
 
+        // Handle server messages
         socket.on('message', function(msg) {
             let msgArea = document.getElementById('messages');
             let p = document.createElement('p');
             p.textContent = msg.msg;
-            p.style.color = msg.status == 'error' ? '#ff4040' : '#98fb98';
+            p.style.color = msg.status == 'error' ? '#ff5555' : '#55ff55';
             msgArea.appendChild(p);
-            setTimeout(() => p.remove(), 5000);
+            
+            // Auto-remove messages after 5 seconds
+            setTimeout(() => {
+                p.style.opacity = '0';
+                p.style.transform = 'translateY(-10px)';
+                p.style.transition = 'all 0.3s ease';
+                setTimeout(() => p.remove(), 300);
+            }, 5000);
         });
 
+        // Connection error handling
         socket.on('connect_error', function(err) {
-            console.log('server’s noping out: ' + err);
+            console.log('Connection error: ' + err);
             let msgArea = document.getElementById('messages');
             let p = document.createElement('p');
-            p.textContent = 'Server ditched us';
-            p.style.color = '#ff4040';
+            p.textContent = 'Connection to server failed';
+            p.style.color = '#ff5555';
             msgArea.appendChild(p);
-            setTimeout(() => p.remove(), 5000);
         });
     </script>
 </body>
