@@ -66,7 +66,7 @@ def keep_it_fresh():
         except Exception as uhoh:
             logging.error(f"Update loop took a dive: {uhoh}")
             realtime_io.emit('message', {'msg': 'Updates crashed, oops!', 'status': 'error'})
-        time.sleep(1)
+        time.sleep(0.5)  # Changed from 1 second to 0.5 seconds for faster updates
 
 try:
     updater = threading.Thread(target=keep_it_fresh, daemon=True)
